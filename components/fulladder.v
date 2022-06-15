@@ -1,3 +1,7 @@
+`ifndef FULLADDER
+`define FULLADDER
+`include "gates.v"
+
 module fulladder(input a, input b, input c, output result, output cout);
 	wire xorout;
 	wire and1out;
@@ -11,3 +15,4 @@ module fulladder(input a, input b, input c, output result, output cout);
 
 	W_OR w_or(cout, and1out, and2out);
 endmodule
+`endif

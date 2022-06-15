@@ -1,5 +1,2 @@
-./gates/gates.v
-./gates/bitwisegates.v
-./components/fulladder.v
-./components/rpadder32.v
-./components/test.v
++incdir+gates/
++incdir+components/

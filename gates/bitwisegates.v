@@ -1,3 +1,7 @@
+`ifndef BWGATES
+`define BWGATES
+`include "gates.v"
+
 module W_AND32(input [31:0] a, input [31:0] b, output [31:0] o);
 	genvar i;
 
@@ -17,3 +21,14 @@ module W_OR32(input[31:0] a, input [31:0] b, output [31:0] o);
 		end
 	endgenerate
 endmodule
+
+module W_XOR32(input[31:0] a, input [31:0] b, output [31:0] o);
+	genvar i;
+
+	generate
+		for(i = 0; i < 32; i = i + 1) begin
+			W_XOR w_xor(o[i], a[i], b[i]);
+		end
+	endgenerate
+endmodule
+`endif

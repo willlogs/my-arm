@@ -1,3 +1,8 @@
+`include "bitwisegates.v"
+`include "gates.v"
+`include "fulladder.v"
+`include "rpadder32.v"
+
 module test;
 	reg[31:0] a = 32'hffffffff;
 	reg[31:0] b = 0;
