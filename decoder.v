@@ -35,10 +35,38 @@ module decoder(
 			operand2 = instruction[11:0];
 
 			case(opcode)
-				4'b0000: $display("AND");
-				4'b0001: $display("EOR");
-				4'b0010: $display("SUB");
-				4'b0011: $display("RSB");
+				4'b0000: begin
+					$display("AND");
+					invert_a = 0;
+					invert_b = 0;
+					islogic = 1;
+					logicidx = 0; 
+					alu_cin = 0;
+				end
+				4'b0001: begin
+					$display("EOR");
+					invert_a = 0;
+					invert_b = 0;
+					islogic = 1;
+					logicidx = 1;
+					alu_cin = 0;
+				end
+				4'b0010: begin
+					$display("SUB");
+					invert_a = 0;
+					invert_b = 1;
+					islogic = 0;
+					logicidx = 0;
+					alu_cin = 1;
+				end
+				4'b0011: begin
+					$display("RSB");
+					invert_a = 1;
+					invert_b = 0;
+					islogic = 0;
+					logicidx = 0;
+					alu_cin = 1;
+				end
 				4'b0100: begin
 					$display("ADD");
 					invert_a = 0;
@@ -47,7 +75,31 @@ module decoder(
 					logicidx = 0;
 					alu_cin = 0;
 				end
-				4'b0101: $display("ADC");
+				4'b0101: begin
+					$display("ADC");
+					invert_a = 0;
+					invert_b = 0;
+					islogic = 0;
+					logicidx = 0;
+					alu_cin = 1;
+				end
+				4'b0110: begin
+					// ?!
+					$display("SBC");
+					invert_a = 0;
+					invert_b = 1;
+					islogic = 0;
+					logicidx = 0;
+					alu_cin = 0;
+				end
+				4'b0111: begin
+					$display("RSC");
+					invert_a = 1;
+					invert_b = 0;
+					islogic = 0;
+					logicidx = 0;
+					alu_cin = 0;
+				end
 			endcase
 
 			if(operandmode == 1) begin
