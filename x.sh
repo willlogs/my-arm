@@ -1,2 +1,2 @@
-iverilog -o output -c file_list.txt shifttest.v &&
+iverilog -o output -c file_list.txt whole.v &&
 vvp output

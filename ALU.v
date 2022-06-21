@@ -9,6 +9,7 @@ module ALU(
   input is_logic,
   input logic_func_idx,
   input cin,
+	input isactive,
   output [31:0] result,
   output N,
   output reg Z,
@@ -26,28 +27,29 @@ module ALU(
 	// place lf
 	
 	always @(*) begin
-	  	#20 if(invert_a) begin
-			adder_a = inverted_a;
-			lf_a = inverted_a;
-	  	end
-		else begin
-		  	adder_a = a;
-		  	lf_a = a;
-		end
+		if(isactive) begin
+			#15 if(invert_a) begin
+				adder_a = inverted_a;
+				lf_a = inverted_a;
+			end
+			else begin
+					adder_a = a;
+					lf_a = a;
+			end
 
-		if(invert_b) begin
-			adder_b = inverted_b;
-			lf_b = inverted_b;
+			if(invert_b) begin
+				adder_b = inverted_b;
+				lf_b = inverted_b;
+			end
+			else begin
+				adder_b = b;
+				lf_b = b;
+			end	
+			
+			#15 if(is_logic) result = lfresult;
+			else result = adderresult;	
+			#5 if(result == 0) Z = 1;
+			else Z = 0;
 		end
-		else begin
-			adder_b = b;
-			lf_b = b;
-		end	
-		
-	  	#20 if(is_logic) result = lfresult;
-		else result = adderresult;	
-
-		#10 if(result == 0) Z = 1;
-	  	else Z = 0;
 	end
 endmodule

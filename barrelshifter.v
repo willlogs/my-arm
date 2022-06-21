@@ -31,7 +31,7 @@ module barrelshifter(input [31:0] i, input[2:0] mode, input[4:0] count, output r
 			end
 			// left shift circular
 			3'b100: begin
-			  	$display("lfc");
+			  	$display("lsc");
 			  	tmp = i;
 			  	for(counter = 0; counter < count; counter = counter + 1) begin
 					tmp = {tmp[30:0], tmp[31]};	
