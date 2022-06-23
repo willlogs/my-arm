@@ -10,9 +10,20 @@
 `include "ALU.v"
 
 module whole;
-	reg[31:0] reg_write, pc_write, alubus, busA, busB, data_read, data_write, instruction;
+	reg[31:0] reg_write,
+		pc_write,
+		alubus,
+		busA,
+		busB,
+		data_read,
+		data_write,
+		instruction,
+		cpsr_write,
+		cpsr_mask;
+	reg [31:0] one = 32'hffffffff;
+	reg [31:0] zero = 0; 
 	reg[4:0] address1, address2;
-	reg reg_w, pc_w, ale, abe, w;
+	reg reg_w, pc_w, ale, abe, w, cpsr_w;
 
 	wire[31:0] read1, read2, pc_read, incrementerbus, ar;
 
@@ -26,9 +37,13 @@ module whole;
 	registerbank rbmodule(
 		reg_write,
 		pc_write,
+		cpsr_write,
+		cpsr_mask,
 		address1,
 		address2,
-		reg_w, pc_w,
+		reg_w,
+		pc_w,
+		cpsr_w,
 		t_clk1,
 		t_clk2,
 		read1,
@@ -59,7 +74,7 @@ module whole;
 	barrelshifter shiftermodule(busB, shifter_mode, shifter_count, shifter_output);
 
 	// decoder - do means decoder output
-	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift;
+	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S;
 	wire[2:0] do_shifter_mode;
 	wire[4:0] do_shifter_count;
 	wire[3:0] do_Rn, do_Rd, do_Rm, do_Rs;
@@ -72,7 +87,9 @@ module whole;
 		do_ale,
 		do_abe,
 		is_immediate,
+		do_S,
 		do_shifter_mode,
+		alu_logic_idx,
 		do_shifter_count,
 		do_Rn,
 		do_Rd,
@@ -81,13 +98,13 @@ module whole;
 		alu_invert_a,
 		alu_invert_b,
 		alu_is_logic,
-		alu_logic_idx,
 		alu_cin,
 		do_immediate_shift
 	);
 
 	reg[31:0] instructions[31:0]; // 32 test instructions
-	wire alu_invert_a, alu_invert_b, alu_is_logic, alu_logic_idx, alu_cin;
+	wire alu_invert_a, alu_invert_b, alu_is_logic, alu_cin;
+	wire[2:0] alu_logic_idx;
 	wire[31:0] alu_result;
 	wire alu_N, alu_Z, alu_C, alu_V;
 	reg alu_active;
@@ -150,7 +167,7 @@ module whole;
 		instructions[2][31:28] = 0; // condition
 		instructions[2][27:26] = 0; // instruction group
 		instructions[2][25] = 0; // #
-		instructions[2][24:21] = 4'b0100; // opcode: add
+		instructions[2][24:21] = 4'b0000; // opcode: add
 		instructions[2][20] = 1; // S
 		instructions[2][19:16] = 0; // first operand reg
 		instructions[2][15:12] = 0; // destination reg
@@ -225,9 +242,17 @@ module whole;
 			address1 = do_Rd;
 			reg_w = 1;
 			reg_write = alu_result;
-			t_clk2 = 1;
-			#10 t_clk2 = 0;
 		end
+
+		if(do_S) begin
+			cpsr_write =  {alu_N, alu_Z, alu_C, alu_V, zero[27:0]};
+			cpsr_mask = one;
+			cpsr_w = 1;
+		end
+
+		t_clk2 = 1;
+		#10 t_clk2 = 0;
+
 		$finish();
 	end
 endmodule

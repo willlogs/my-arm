@@ -1,10 +1,12 @@
 module registerbank(
   input [31:0] write,
   input [31:0] pc_write,
+	input [31:0] cpsr_write, cpsr_mask,
   input [4:0] address1,
   input [4:0] address2,
   input w,
   input pc_w,
+	input cpsr_w,
   input clk1, clk2,
   output reg[31:0] read1,
   output reg[31:0] read2,
@@ -15,8 +17,14 @@ module registerbank(
 	// 16 - 22 are fiq registers
 	// 23 - 24 are svc
 	// 25 - 26 are abt
-	// 27 - 29 are irq
-	// 30 - 31 are und
+	// 27 - 28 are irq
+	// 29 - 30 are und
+	// 31 cpsr
+	// 32 SPSR_fiq
+	// 33 SPSR_svc
+	// 34 SPSR_abt
+	// 35 SPSR_irq
+	// 36 SPSR_und
 	reg[31:0] bank[0:36];
 
 	always @(*) begin
@@ -42,6 +50,11 @@ module registerbank(
 				if(w) begin		
 					$display("writing %h to %h", write, address1);
 					bank[address1] = write;			
+				end
+
+				if(cpsr_w) begin
+					$display("writing CPSR %b", cpsr_write);
+					bank[31] = (bank[31] & ~cpsr_mask) | (cpsr_write & cpsr_mask); 
 				end
 			end
 	end
