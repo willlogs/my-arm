@@ -10,6 +10,9 @@
 `include "ALU.v"
 
 module whole;
+	// =========
+	// Variables
+	// =========
 	reg[31:0] reg_write,
 		pc_write,
 		alubus,
@@ -24,14 +27,32 @@ module whole;
 	reg [31:0] zero = 0; 
 	reg[4:0] address1, address2;
 	reg reg_w, pc_w, ale, abe, w, cpsr_w;
-
-	wire[31:0] read1, read2, pc_read, incrementerbus, ar;
-
-	// clock
-	wire clk1, clk2;
-	clock clkmodule(clk1, clk2);
-
 	reg t_clk1, t_clk2;
+	reg[31:0] mult_input_1;
+	reg[7:0] mult_input_2;
+	reg[2:0] shifter_mode;
+	reg[4:0] shifter_count;
+	reg alu_active;
+	reg[31:0] instructions[31:0]; // 32 test instructions
+
+	wire clk1, clk2;
+	wire[31:0] read1, read2, pc_read, incrementerbus, ar;
+	wire[31:0] mult_output;
+	wire[31:0] shifter_output;
+	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S;
+	wire[2:0] do_shifter_mode;
+	wire[4:0] do_shifter_count;
+	wire[3:0] do_Rn, do_Rd, do_Rm, do_Rs;
+	wire alu_invert_a, alu_invert_b, alu_is_logic, alu_cin;
+	wire[2:0] alu_logic_idx;
+	wire[31:0] alu_result;
+	wire alu_N, alu_Z, alu_C, alu_V;
+
+	// =============
+	// Modules Instantiation
+	// =============
+	// clock
+	clock clkmodule(clk1, clk2);
 
 	// register bank
 	registerbank rbmodule(
@@ -62,23 +83,12 @@ module whole;
 	);
 
 	// multiplier
-	reg[31:0] mult_input_1;
-	wire[31:0] mult_output;
-	reg[7:0] mult_input_2;
 	multiplier multipliermodule(mult_input_1, mult_input_2, mult_output);
 
 	// barrelshifter
-	wire[31:0] shifter_output;
-	reg[2:0] shifter_mode;
-	reg[4:0] shifter_count;
 	barrelshifter shiftermodule(busB, shifter_mode, shifter_count, shifter_output);
 
 	// decoder - do means decoder output
-	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S;
-	wire[2:0] do_shifter_mode;
-	wire[4:0] do_shifter_count;
-	wire[3:0] do_Rn, do_Rd, do_Rm, do_Rs;
-
 	decoder decodermodule(
 		instruction,
 		t_clk1,
@@ -102,13 +112,6 @@ module whole;
 		do_immediate_shift
 	);
 
-	reg[31:0] instructions[31:0]; // 32 test instructions
-	wire alu_invert_a, alu_invert_b, alu_is_logic, alu_cin;
-	wire[2:0] alu_logic_idx;
-	wire[31:0] alu_result;
-	wire alu_N, alu_Z, alu_C, alu_V;
-	reg alu_active;
-
 	ALU alumodule(
 		busA,
 		shifter_output,
@@ -127,12 +130,15 @@ module whole;
 
 	initial begin
 		// make instruction (test)
+
+		// fill in reg[0]
 		address1 = 0;
 		reg_write = 32'hfffffff0;
 		reg_w = 1;
 		t_clk2 = 1;
 		#10 t_clk2 = 0;
 
+		// fill in reg[1]
 		address1 = 1;
 		reg_write = 32'h0000000f;
 		t_clk2 = 1;
@@ -179,16 +185,16 @@ module whole;
 
 		// fetch
 		instruction = instructions[2];
+
 		// decode
 		t_clk1 = 1;
 		#10 t_clk1 = 0;
 
-		// execute
-		// immediate addressing
-		if(is_immediate == 1) begin
-			// read Rn
+		// operand fill
+		if(is_immediate) begin
 			address1 = do_Rn;
 			reg_w = do_reg_w;
+
 			t_clk1 = 1;
 			#10 t_clk1 = 0;
 			busA = read1;
@@ -198,25 +204,12 @@ module whole;
 			shifter_count = do_shifter_count;
 			shifter_mode = do_shifter_mode;
 			#10 $display("immedate addressing %h", shifter_output);
-
-			// alu hotspot
-			alu_active = 1;
-			#36 $display("alu inputs busA : %h busB: %h, output: %h", busA, shifter_output, alu_result);
-			alu_active = 0;
-
-			// write result
-			// might need to come out of clauses
-			address1 = do_Rd;
-			reg_w = 1;
-			reg_write = alu_result;
-			t_clk2 = 1;
-			#10 t_clk2 = 0;
 		end
 		else begin
-			// read from memory
 			address1 = do_Rn;
 			address2 = do_Rm;
 			reg_w = do_reg_w;
+
 			t_clk1 = 1;
 			#5 t_clk1 = 0;
 			busA = read1;
@@ -232,18 +225,28 @@ module whole;
 			end
 			shifter_mode = do_shifter_mode;
 			#5 $display("shifter output %h", shifter_output);
+		end
 
-			// alu hotspot
-			alu_active = 1;
-			#36 $display("alu inputs busA : %h busB: %h, output: %h", busA, shifter_output, alu_result);
-			alu_active = 0;
+		// alu hot spot
+		alu_active = 1;
+		#36 $display("alu inputs busA : %h busB: %h, output: %h", busA, shifter_output, alu_result);
+		alu_active = 0;
 
-			// write back to memory
+		// write to register bank
+		if(is_immediate == 1) begin
+			address1 = do_Rd;
+			reg_w = 1;
+			reg_write = alu_result;
+			t_clk2 = 1;
+			#10 t_clk2 = 0;
+		end
+		else begin
 			address1 = do_Rd;
 			reg_w = 1;
 			reg_write = alu_result;
 		end
 
+		// Set conditions
 		if(do_S) begin
 			cpsr_write =  {alu_N, alu_Z, alu_C, alu_V, zero[27:0]};
 			cpsr_mask = one;
