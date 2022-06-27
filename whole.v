@@ -39,7 +39,7 @@ module whole;
 	wire[31:0] read1, read2, pc_read, incrementerbus, ar;
 	wire[31:0] mult_output;
 	wire[31:0] shifter_output;
-	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S;
+	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S, do_aluhot;
 	wire[2:0] do_shifter_mode;
 	wire[4:0] do_shifter_count;
 	wire[3:0] do_Rn, do_Rd, do_Rm, do_Rs;
@@ -98,6 +98,7 @@ module whole;
 		do_abe,
 		is_immediate,
 		do_S,
+		do_aluhot,
 		do_shifter_mode,
 		alu_logic_idx,
 		do_shifter_count,
@@ -129,8 +130,6 @@ module whole;
 	);
 
 	initial begin
-		// make instruction (test)
-
 		// fill in reg[0]
 		address1 = 0;
 		reg_write = 32'hfffffff0;
@@ -141,8 +140,10 @@ module whole;
 		// fill in reg[1]
 		address1 = 1;
 		reg_write = 32'h0000000f;
+		reg_w = 1;
 		t_clk2 = 1;
 		#10 t_clk2 = 0;
+		reg_w = 0;
 
 		// Data Processing operand2 addressing types
 		// immediate addressing
@@ -185,17 +186,16 @@ module whole;
 
 		// fetch
 		instruction = instructions[2];
+		reg_w = 0;
 
 		// decode
+		$display("decode");
 		t_clk1 = 1;
-		#10 t_clk1 = 0;
 
 		// operand fill
-		if(is_immediate) begin
+		#10 if(is_immediate) begin
 			address1 = do_Rn;
-			reg_w = do_reg_w;
 
-			t_clk1 = 1;
 			#10 t_clk1 = 0;
 			busA = read1;
 
@@ -203,12 +203,11 @@ module whole;
 			busB = instruction[7:0];
 			shifter_count = do_shifter_count;
 			shifter_mode = do_shifter_mode;
-			#10 $display("immedate addressing %h", shifter_output);
+			#5 $display("immedate addressing %h", shifter_output);
 		end
 		else begin
 			address1 = do_Rn;
 			address2 = do_Rm;
-			reg_w = do_reg_w;
 
 			t_clk1 = 1;
 			#5 t_clk1 = 0;
@@ -227,36 +226,42 @@ module whole;
 			#5 $display("shifter output %h", shifter_output);
 		end
 
-		// alu hot spot
-		alu_active = 1;
-		#36 $display("alu inputs busA : %h busB: %h, output: %h", busA, shifter_output, alu_result);
-		alu_active = 0;
-
-		// write to register bank
-		if(is_immediate == 1) begin
-			address1 = do_Rd;
-			reg_w = 1;
+		if(do_aluhot) begin
+			// alu hot spot
+			alu_active = 1;
+			#36 $display("alu inputs busA : %h busB: %h, output: %h", busA, shifter_output, alu_result);
+			alu_active = 0;
 			reg_write = alu_result;
-			t_clk2 = 1;
-			#10 t_clk2 = 0;
 		end
 		else begin
-			address1 = do_Rd;
-			reg_w = 1;
-			reg_write = alu_result;
+			reg_write = shifter_output;
 		end
 
-		// Set conditions
-		if(do_S) begin
-			cpsr_write =  {alu_N, alu_Z, alu_C, alu_V, zero[27:0]};
-			cpsr_mask = one;
-			cpsr_w = 1;
+		// write to register bank
+		if(do_reg_w) begin
+			if(is_immediate == 1) begin
+				address1 = do_Rd;
+				reg_w = 1;
+				t_clk2 = 1;
+				#10 t_clk2 = 0;
+			end
+			else begin
+				address1 = do_Rd;
+				reg_w = 1;
+			end
+
+			// Set conditions
+			if(do_S) begin
+				cpsr_write =  {alu_N, alu_Z, alu_C, alu_V, zero[27:0]};
+				cpsr_mask = one;
+				cpsr_w = 1;
+			end
+
+			t_clk2 = 1;
+			#10 t_clk2 = 0;
+
+			$finish();
 		end
-
-		t_clk2 = 1;
-		#10 t_clk2 = 0;
-
-		$finish();
 	end
 endmodule
 `endif

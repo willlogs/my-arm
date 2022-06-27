@@ -29,6 +29,7 @@ module registerbank(
 
 	always @(*) begin
 	  	if(clk1) begin
+				$display("accessing regbank w: %b", w);
 				if(!w) begin
 					read1 = bank[address1];
 					$display("reading %h from %h", read1, address1);

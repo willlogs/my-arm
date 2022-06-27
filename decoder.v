@@ -9,6 +9,7 @@ module decoder(
 	abe,
 	is_immediate,
 	S_on,
+	alu_hot,
 	output reg [2:0] shifter_mode, logicidx,
 	output reg [4:0] shifter_count,
 	output reg [3:0] Rn, Rd, Rm, Rs,
@@ -34,6 +35,8 @@ module decoder(
 			Rn = instruction[19:16];
 			Rd = instruction[15:12];
 			operand2 = instruction[11:0];
+
+			alu_hot = 1;
 
 			case(opcode)
 				4'b0000: begin
@@ -156,12 +159,25 @@ module decoder(
 				end
 				4'b1101: begin
 					$display("MOV");	
+					alu_hot = 0;
 				end
 				4'b1110: begin
 					$display("BIC");
+					invert_a = 0;
+					invert_b = 1;
+					islogic = 1;
+					logicidx = 0;
+					alu_cin = 0;
+					reg_w = 1;
 				end
 				4'b1111: begin
 					$display("MVN");
+					invert_a = 0;
+					invert_b = 1;
+					islogic = 0;
+					logicidx = 0;
+					alu_cin = 0;
+					reg_w = 1;
 				end
 			endcase
 
