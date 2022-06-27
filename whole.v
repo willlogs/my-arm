@@ -1,3 +1,4 @@
+// TODO: Add tasks, global if possible
 `ifndef ARM
 `define ARM
 `include "clockgenerator.v"
@@ -36,10 +37,12 @@ module whole;
 	reg[31:0] instructions[31:0]; // 32 test instructions
 
 	wire clk1, clk2;
+	wire[1:0] do_special_input;
 	wire[31:0] read1, read2, pc_read, incrementerbus, ar;
 	wire[31:0] mult_output;
 	wire[31:0] shifter_output;
-	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S, do_aluhot;
+	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S, do_aluhot,
+	do_mult_hot;
 	wire[2:0] do_shifter_mode;
 	wire[4:0] do_shifter_count;
 	wire[3:0] do_Rn, do_Rd, do_Rm, do_Rs;
@@ -99,6 +102,7 @@ module whole;
 		is_immediate,
 		do_S,
 		do_aluhot,
+		do_special_input,
 		do_shifter_mode,
 		alu_logic_idx,
 		do_shifter_count,
@@ -184,6 +188,8 @@ module whole;
 		instructions[2][4] = 1; // immediate shift
 		instructions[2][3:0] = 1; // Rm
 
+		// multiply test
+
 		// fetch
 		instruction = instructions[2];
 		reg_w = 0;
@@ -196,8 +202,7 @@ module whole;
 		#10 if(is_immediate) begin
 			address1 = do_Rn;
 
-			#10 t_clk1 = 0;
-			busA = read1;
+			#5 busA = read1;
 
 			// calculate operand 2
 			busB = instruction[7:0];
@@ -209,9 +214,7 @@ module whole;
 			address1 = do_Rn;
 			address2 = do_Rm;
 
-			t_clk1 = 1;
-			#5 t_clk1 = 0;
-			busA = read1;
+			#5 busA = read1;
 			busB = read2;
 
 			// shift
@@ -220,10 +223,22 @@ module whole;
 			end
 			else begin
 				// bypass -- I don't want a double clock instruction
+				// TODO: solution: put Rs and Rm in shifter then read Rn while waiting for shifter and do the rest
 				shifter_count = 0;
 			end
 			shifter_mode = do_shifter_mode;
 			#5 $display("shifter output %h", shifter_output);
+		end
+
+		// special input mode
+		if(do_special_input[1]) begin
+			if(do_special_input[0] == 0) busA = one;
+			else busA = zero;
+		end
+
+		if(do_mult_hot) begin
+			mult_input_1 = busA;
+			mult_input_2 = busB;
 		end
 
 		if(do_aluhot) begin
@@ -236,9 +251,10 @@ module whole;
 		else begin
 			reg_write = shifter_output;
 		end
+		#5 t_clk1 = 0;
 
 		// write to register bank
-		if(do_reg_w) begin
+		#5 if(do_reg_w) begin
 			if(is_immediate == 1) begin
 				address1 = do_Rd;
 				reg_w = 1;
