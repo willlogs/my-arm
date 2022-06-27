@@ -102,6 +102,7 @@ module whole;
 		is_immediate,
 		do_S,
 		do_aluhot,
+		do_mult_hot,
 		do_special_input,
 		do_shifter_mode,
 		alu_logic_idx,
