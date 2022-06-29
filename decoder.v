@@ -38,12 +38,14 @@ module decoder(
 				mul = instruction[23:21];	
 				mult_hot = 1;
 				alu_hot = 0;
+				reg_w = 1;
 
 				case(mul)
 					3'b000: begin
-						$display("MUL");
 						Rm = instruction[3:0];
 						Rs = instruction[11:8];
+						Rd = instruction[19:16];
+						$display("MUL Rm: %h, Rs: %h", Rm, Rs);
 					end
 					3'b001: begin
 						$display("MLA");
@@ -72,6 +74,7 @@ module decoder(
 				Rn = instruction[19:16];
 				Rd = instruction[15:12];
 				operand2 = instruction[11:0];
+				mult_hot = 0;
 
 				case(opcode)
 					4'b0000: begin
@@ -216,28 +219,28 @@ module decoder(
 						special_input[1] = 1;
 					end
 				endcase
-			end
-
-			if(operandmode == 1) begin
-				shifter_mode = 3'b100; // left shift circular
-				shifter_count = operand2[11:8];
-				is_immediate = 1;
-				immediate_shift = 1;
-			end
-			else begin
-				shifter_mode = operand2[6:5];
-				shifter_count = operand2[11:7];
-				is_immediate = 0;
-				Rm = operand2[3:0];
-
-				if(operand2[4] == 0) begin
+				$display("deciding operand mode");
+				if(operandmode == 1) begin
+					shifter_mode = 3'b100; // left shift circular
+					shifter_count = operand2[11:8];
+					is_immediate = 1;
 					immediate_shift = 1;
 				end
 				else begin
-					immediate_shift = 0;
-					Rs = operand2[11:8];
-				end
-			end	
+					shifter_mode = operand2[6:5];
+					shifter_count = operand2[11:7];
+					is_immediate = 0;
+					Rm = operand2[3:0];
+
+					if(operand2[4] == 0) begin
+						immediate_shift = 1;
+					end
+					else begin
+						immediate_shift = 0;
+						Rs = operand2[11:8];
+					end
+				end	
+			end
 
 			S_on = S;
 		end

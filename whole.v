@@ -137,14 +137,14 @@ module whole;
 	initial begin
 		// fill in reg[0]
 		address1 = 0;
-		reg_write = 32'hfffffff0;
+		reg_write = 5;
 		reg_w = 1;
 		t_clk2 = 1;
 		#10 t_clk2 = 0;
 
 		// fill in reg[1]
 		address1 = 1;
-		reg_write = 32'h0000000f;
+		reg_write = 3;
 		reg_w = 1;
 		t_clk2 = 1;
 		#10 t_clk2 = 0;
@@ -190,17 +190,30 @@ module whole;
 		instructions[2][3:0] = 1; // Rm
 
 		// multiply test
+		instructions[3][31:28] = 0; // condition	
+		instructions[3][27:24] = 0; // indicator
+		instructions[3][23:21] = 0; // mul (simple MUL)
+		instructions[3][20] = 0; // S
+		instructions[3][19:16] = 2; // Rd
+		instructions[3][15:12] = 0; // Rn
+		instructions[3][11:8] = 0; // Rs
+		instructions[3][7:4] = 4'b1001; // mul signature
+		instructions[3][3:0] = 1; // Rm
+		// TODO: add multiplication
 
 		// fetch
-		instruction = instructions[2];
+		$display("\n\n===> fetch");
+		instruction = instructions[0];
 		reg_w = 0;
 
 		// decode
-		$display("decode");
+		$display("\n\nCLOCK1 UP\n\n");
 		t_clk1 = 1;
+		$display("\n\n===> decode");
 
 		// operand fill
 		#10 if(is_immediate) begin
+			$display("\n\n===> immediate addressing");
 			address1 = do_Rn;
 
 			#5 busA = read1;
@@ -212,23 +225,30 @@ module whole;
 			#5 $display("immedate addressing %h", shifter_output);
 		end
 		else begin
-			address1 = do_Rn;
+			$display("\n\n===> non-immediate addressing");
+			if(do_mult_hot) address1 = do_Rs;
+			else address1 = do_Rn;
+
 			address2 = do_Rm;
+			reg_w = 0;
+			$display("reading from regs %h & %h", address1, address2);
 
 			#5 busA = read1;
 			busB = read2;
 
-			// shift
-			if(do_immediate_shift) begin
-				shifter_count = do_shifter_count;
+			if(!do_mult_hot) begin
+				// shift
+				if(do_immediate_shift) begin
+					shifter_count = do_shifter_count;
+				end
+				else begin
+					// bypass -- I don't want a double clock instruction
+					// TODO: solution: put Rs and Rm in shifter then read Rn while waiting for shifter and do the rest
+					shifter_count = 0;
+				end
+				shifter_mode = do_shifter_mode;
+				#5 $display("shifter output %h", shifter_output);
 			end
-			else begin
-				// bypass -- I don't want a double clock instruction
-				// TODO: solution: put Rs and Rm in shifter then read Rn while waiting for shifter and do the rest
-				shifter_count = 0;
-			end
-			shifter_mode = do_shifter_mode;
-			#5 $display("shifter output %h", shifter_output);
 		end
 
 		// special input mode
@@ -238,11 +258,14 @@ module whole;
 		end
 
 		if(do_mult_hot) begin
+			$display("\n\n===> multiplication");
 			mult_input_1 = busA;
 			mult_input_2 = busB;
+			#5 $display("mult output:%d x %d = %d", mult_input_1, mult_input_2, mult_output);
+			reg_write = mult_output;
 		end
-
-		if(do_aluhot) begin
+		else if(do_aluhot) begin
+			$display("\n\n===> ALU opertation");
 			// alu hot spot
 			alu_active = 1;
 			#36 $display("alu inputs busA : %h busB: %h, output: %h", busA, shifter_output, alu_result);
@@ -252,20 +275,15 @@ module whole;
 		else begin
 			reg_write = shifter_output;
 		end
+		$display("\n\nCLOCK1 DOWN\n\n");
 		#5 t_clk1 = 0;
 
 		// write to register bank
 		#5 if(do_reg_w) begin
-			if(is_immediate == 1) begin
-				address1 = do_Rd;
-				reg_w = 1;
-				t_clk2 = 1;
-				#10 t_clk2 = 0;
-			end
-			else begin
-				address1 = do_Rd;
-				reg_w = 1;
-			end
+			$display("\n\n===> write back to register");
+			address1 = do_Rd;
+			reg_w = 1;
+			$display("writing %d to %h", reg_write, address1);
 
 			// Set conditions
 			if(do_S) begin
@@ -274,6 +292,7 @@ module whole;
 				cpsr_w = 1;
 			end
 
+			$display("\n\nCLOCK2\n\n");
 			t_clk2 = 1;
 			#10 t_clk2 = 0;
 

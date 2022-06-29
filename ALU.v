@@ -25,7 +25,7 @@ module ALU(
 	W_XOR32 b_inverter(b, inverter, inverted_b);
 
 	rpadder32 adder(adder_a, adder_b, cin, adderresult, C);
-	logicfunctions lf(lf_a, lf_b, logic_func_idx, lfresult);
+	logicfunctions lf(lf_a, lf_b, logic_func_idx, is_logic, lfresult);
 	
 	always @(*) begin
 		if(isactive) begin
