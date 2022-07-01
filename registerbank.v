@@ -4,6 +4,7 @@ module registerbank(
 	input [31:0] cpsr_write, cpsr_mask,
   input [4:0] address1,
   input [4:0] address2,
+	input is_active,
   input w,
   input pc_w,
 	input cpsr_w,
@@ -28,7 +29,7 @@ module registerbank(
 	reg[31:0] bank[0:36];
 
 	always @(*) begin
-	  	if(clk1) begin
+	  	if(clk1 && is_active) begin
 				$display("accessing regbank w: %b", w);
 				if(!w) begin
 					read1 = bank[address1];

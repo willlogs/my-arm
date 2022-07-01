@@ -11,6 +11,7 @@ module decoder(
 	S_on,
 	alu_hot,
 	mult_hot,
+	output reg[3:0] mode,
 	output reg [1:0] special_input, // 0 all zero, 1 all one, second bit is on/off
 	output reg [2:0] shifter_mode, logicidx,
 	output reg [4:0] shifter_count,
@@ -46,18 +47,21 @@ module decoder(
 						Rs = instruction[11:8];
 						Rd = instruction[19:16];
 						$display("MUL Rm: %h, Rs: %h", Rm, Rs);
+						mode = `mode_mult_mul;
 					end
 					3'b001: begin
 						$display("MLA");
 					end
 					3'b100: begin
 						$display("UMULL");
+						mode = `mode_mult_umull;
 					end
 					3'b101: begin
 						$display("UMLAL");
 					end
 					3'b110: begin
 						$display("SMULL");
+						mode = `mode_mult_smull;
 					end
 					3'b111: begin
 						$display("SMLAL");
@@ -75,6 +79,7 @@ module decoder(
 				Rd = instruction[15:12];
 				operand2 = instruction[11:0];
 				mult_hot = 0;
+				mode = 0;
 
 				case(opcode)
 					4'b0000: begin
