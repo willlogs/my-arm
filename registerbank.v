@@ -8,6 +8,7 @@ module registerbank(
 	input is_active,
   input w,
   input pc_w,
+	input pc_increment,
 	input cpsr_w,
   input clk1, clk2,
   output reg[31:0] read1,
@@ -30,6 +31,14 @@ module registerbank(
 	// 36 SPSR_und
 	reg[31:0] bank[0:36];
 
+	integer i;
+
+	initial begin
+		for(int i = 0; i < 37; i++) begin
+			bank[i] = 0;
+		end
+	end
+
 	always @(*) begin
 	  	if(clk1 && is_active) begin
 				$display("accessing regbank w: %b", w);
@@ -43,6 +52,7 @@ module registerbank(
 				end
 
 				pc_read = bank[15];
+				if(pc_increment) bank[15] = bank[15] + 4;
 				$display("reading %h from pc", pc_read);
 	  	end
 

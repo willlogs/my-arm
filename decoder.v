@@ -2,7 +2,7 @@
 `define DECODER
 module decoder(
 	input [31:0] instruction,
-	input clk,
+	input clk, isactive,
 	output reg reg_w,
 	pc_w,
 	ale,
@@ -28,7 +28,7 @@ module decoder(
 	reg[11:0] operand2;
 	
 	always @(*) begin
-		if(clk) begin
+		if(clk && isactive) begin
 			$display("decoding instruction %b", instruction);
 
 			alu_hot = 1;
@@ -64,14 +64,14 @@ module decoder(
 						mode = `mode_mult_umull;
 					end
 					3'b101: begin
-						$display("UMLAL");
+						$display("UMLAL unavailable");
 					end
 					3'b110: begin
 						$display("SMULL");
 						mode = `mode_mult_smull;
 					end
 					3'b111: begin
-						$display("SMLAL");
+						$display("SMLAL unavailable");
 					end
 				endcase
 			end

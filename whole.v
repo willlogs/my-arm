@@ -28,6 +28,7 @@
 `include "rpadder32.v"
 `include "decoder.v"
 `include "ALU.v"
+`include "memory.v"
 
 module whole;
 	// =========
@@ -42,7 +43,10 @@ module whole;
 		data_write,
 		instruction,
 		cpsr_write,
-		cpsr_mask;
+		cpsr_mask,
+		mem_address,
+		mem_write,
+		mem_mask;
 	reg [31:0] one = 32'hffffffff;
 	reg [31:0] zero = 0; 
 	reg[4:0] address1, address2, address3;
@@ -51,12 +55,12 @@ module whole;
 	reg[31:0] mult_input_1, mult_input_2;
 	reg[2:0] shifter_mode;
 	reg[4:0] shifter_count;
-	reg alu_active;
-	reg[31:0] instructions[31:0]; // 32 test instructions
+	reg alu_active, mem_w;
+	reg clockgen_active = 1, pc_increment = 0;
 
 	wire clk1, clk2;
 	wire[1:0] do_special_input;
-	wire[31:0] read1, read2, read3, pc_read, incrementerbus, ar;
+	wire[31:0] read1, read2, read3, pc_read, incrementerbus, ar, mem_read;
 	wire[63:0] mult_output;
 	wire[31:0] shifter_output;
 	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S, do_aluhot,
@@ -74,7 +78,7 @@ module whole;
 	// Modules Instantiation
 	// =============
 	// clock
-	clock clkmodule(clk1, clk2);
+	clock clkmodule(clockgen_active, clk1, clk2);
 
 	// register bank
 	registerbank rbmodule(
@@ -88,6 +92,7 @@ module whole;
 		regbank_active,
 		reg_w,
 		pc_w,
+		pc_increment,
 		cpsr_w,
 		t_clk1,
 		t_clk2,
@@ -117,6 +122,7 @@ module whole;
 	decoder decodermodule(
 		instruction,
 		t_clk1,
+		decoder_active,
 		do_reg_w,
 		do_pc_w,
 		do_ale,
@@ -157,7 +163,18 @@ module whole;
 		alu_V
 	);
 
+	memory memorymodule(
+		mem_address,
+		mem_write,
+		mem_mask,
+		t_clk1,
+		t_clk2,
+		mem_w,
+		mem_read
+	);
+
 	initial begin
+		#1000 $display("setting up processor");
 		regbank_active = 0;
 		/*
 		===========================
@@ -183,10 +200,9 @@ module whole;
 		t_clk2 = 1;
 		#10 t_clk2 = 0;
 		reg_w = 0;
-		regbank_active = 0;
 
 		address1 = 2;
-		reg_write = 3;
+		reg_write = 15;
 		reg_w = 1;
 		t_clk2 = 1;
 		#10 t_clk2 = 0;
@@ -195,92 +211,141 @@ module whole;
 
 		// Data Processing operand2 addressing types
 		// immediate addressing
-		instructions[0][31:28] = 0; // condition
-		instructions[0][27:26] = 0; // instruction group
-		instructions[0][25] = 1; // #
-		instructions[0][24:21] = 4'b0100; // opcode: add
-		instructions[0][20] = 1; // S
-		instructions[0][19:16] = 0; // first operand reg
-		instructions[0][15:12] = 0; // destination reg
-		instructions[0][11:8] = 0; // #rot
-		instructions[0][7:0] = 8'h0f; // immediate
+		instruction[31:28] = 0; // condition
+		instruction[27:26] = 0; // instruction group
+		instruction[25] = 1; // #
+		instruction[24:21] = 4'b0100; // opcode: add
+		instruction[20] = 1; // S
+		instruction[19:16] = 0; // first operand reg
+		instruction[15:12] = 0; // destination reg
+		instruction[11:8] = 0; // #rot
+		instruction[7:0] = 8'h0f; // immediate
+
+		mem_address = 0;
+		mem_write = instruction;
+		mem_w = 1;
+		t_clk2 = 1;
+		#10 t_clk2 = 0;
 
 		// reg addressing with immediate shift
-		instructions[1][31:28] = 0; // condition
-		instructions[1][27:26] = 0; // instruction group
-		instructions[1][25] = 0; // #
-		instructions[1][24:21] = 4'b0100; // opcode: add
-		instructions[1][20] = 1; // S
-		instructions[1][19:16] = 0; // first operand reg
-		instructions[1][15:12] = 0; // destination reg
-		instructions[1][11:7] = 0; // immediate shift length
-		instructions[1][6:5] = 0; // shift type
-		instructions[1][4] = 0; // immediate shift
-		instructions[1][3:0] = 1; // Rm
+		instruction[31:28] = 0; // condition
+		instruction[27:26] = 0; // instruction group
+		instruction[25] = 0; // #
+		instruction[24:21] = 4'b0100; // opcode: add
+		instruction[20] = 1; // S
+		instruction[19:16] = 0; // first operand reg
+		instruction[15:12] = 0; // destination reg
+		instruction[11:7] = 0; // immediate shift length
+		instruction[6:5] = 0; // shift type
+		instruction[4] = 0; // immediate shift
+		instruction[3:0] = 1; // Rm
+
+		mem_address = 4;
+		mem_write = instruction;
+		mem_w = 1;
+		t_clk2 = 1;
+		#10 t_clk2 = 0;
 
 		// reg addressing with reg shift
-		instructions[2][31:28] = 0; // condition
-		instructions[2][27:26] = 0; // instruction group
-		instructions[2][25] = 0; // #
-		instructions[2][24:21] = 4'b0000; // opcode: and
-		instructions[2][20] = 1; // S
-		instructions[2][19:16] = 0; // first operand reg
-		instructions[2][15:12] = 0; // destination reg
-		instructions[2][11:8] = 2; // Rs
-		instructions[2][7] = 0; // just for alignment
-		instructions[2][6:5] = 0; // shift type
-		instructions[2][4] = 1; // immediate shift
-		instructions[2][3:0] = 1; // Rm
+		instruction[31:28] = 0; // condition
+		instruction[27:26] = 0; // instruction group
+		instruction[25] = 0; // #
+		instruction[24:21] = 4'b0000; // opcode: and
+		instruction[20] = 1; // S
+		instruction[19:16] = 0; // first operand reg
+		instruction[15:12] = 0; // destination reg
+		instruction[11:8] = 2; // Rs
+		instruction[7] = 0; // just for alignment
+		instruction[6:5] = 0; // shift type
+		instruction[4] = 1; // immediate shift
+		instruction[3:0] = 1; // Rm
+
+		mem_address = 8;
+		mem_write = instruction;
+		mem_w = 1;
+		t_clk2 = 1;
+		#10 t_clk2 = 0;
 
 		// multiply test
-		instructions[3][31:28] = 0; // condition	
-		instructions[3][27:24] = 0; // indicator
-		instructions[3][23:21] = 3'b001; // mul (simple MUL)
-		instructions[3][20] = 0; // S
-		instructions[3][19:16] = 0; // Rd
-		instructions[3][15:12] = 2; // Rn
-		instructions[3][11:8] = 0; // Rs
-		instructions[3][7:4] = 4'b1001; // mul signature
-		instructions[3][3:0] = 1; // Rm
-		// TODO: add multiplication
+		instruction[31:28] = 0; // condition	
+		instruction[27:24] = 0; // indicator
+		instruction[23:21] = 3'b001; // mul (simple MUL)
+		instruction[20] = 0; // S
+		instruction[19:16] = 0; // Rd
+		instruction[15:12] = 2; // Rn
+		instruction[11:8] = 0; // Rs
+		instruction[7:4] = 4'b1001; // mul signature
+		instruction[3:0] = 1; // Rm
 
-		$display("\n\nCLOCK1 UP\n\n");
-		t_clk1 = 1;
-		#100 $display("\n\nCLOCK1 DOWN\n\n");
-		t_clk1 = 0;
-
-		#10 $display("\n\nCLOCK2 UP\n\n");
+		mem_address = 12;
+		mem_write = instruction;
+		mem_w = 1;
 		t_clk2 = 1;
-		#100 $display("\n\nCLOCK2 DOWN\n\n");
-		t_clk2 = 0;
+		#10 t_clk2 = 0;
 
-		$finish();
+		instruction = 0;
+		test_clkactive = 1;
+		mem_w = 0;
 	end
 
-	reg do_availabe = 0;
+	// test
+	reg test_clkactive = 0;
+	always @(*) begin
+		if(test_clkactive) begin
+			t_clk1 = clk1;
+			t_clk2 = clk2;
+		end
+	end
+
+	reg fetch_done = 0;
 	always @(posedge t_clk1) begin
 		/*
 		===========================
 		===========================
 		===========================
-						FETCH/DECODE
-						CONTROL PIPELINE
+							FETCH
 		===========================
 		===========================
 		===========================
 		*/
 		// decoder output signal off
-		do_availabe = 0;
+		fetch_done = 0;
+		regbank_active = 1;
+		pc_increment = 1;
 
 		// fetch
-		$display("\n\n===> fetch");
-		instruction = instructions[3]; // for testing purposes
+		#1 mem_address = pc_read;
+		#1 regbank_active = 0;
 
+		#5 $display("\n\n===> fetch %h -> %h", mem_address, mem_read);
+		instruction = mem_read;
+		pc_increment = 0;
+		fetch_done = 1;
+	end
+
+	reg do_availabe = 0, decoder_active = 0;
+	always @(posedge fetch_done) begin
+		/*
+		===========================
+		===========================
+		===========================
+							DECODE
+		===========================
+		===========================
+		===========================
+		*/
+		do_availabe = 0;
+		decoder_active = 1;
 		// decode
 		$display("\n\n===> decode");
+		if(instruction == 0) begin
+			$display("halt");
+			$finish(0);
+		end
 
 		// #10 decoder output on end
 		#10 do_availabe = 1;
+		decoder_active = 0;
 	end
 	
 	reg regbank_donereading = 0;
