@@ -2,8 +2,9 @@
 `define PROCESSORMODES
 
 `define mode_mult_mul				1
-`define mode_mult_umull			2
-`define mode_mult_smull			3
+`define mode_mult_mla				2
+`define mode_mult_umull			3
+`define mode_mult_smull			4
 `define mode_skip_alu				15
 
 `endif
@@ -44,7 +45,7 @@ module whole;
 		cpsr_mask;
 	reg [31:0] one = 32'hffffffff;
 	reg [31:0] zero = 0; 
-	reg[4:0] address1, address2;
+	reg[4:0] address1, address2, address3;
 	reg reg_w, pc_w, ale, abe, w, cpsr_w, regbank_active;
 	reg t_clk1, t_clk2;
 	reg[31:0] mult_input_1, mult_input_2;
@@ -55,7 +56,7 @@ module whole;
 
 	wire clk1, clk2;
 	wire[1:0] do_special_input;
-	wire[31:0] read1, read2, pc_read, incrementerbus, ar;
+	wire[31:0] read1, read2, read3, pc_read, incrementerbus, ar;
 	wire[63:0] mult_output;
 	wire[31:0] shifter_output;
 	wire do_reg_w, do_pc_w, do_ale, do_abe, is_immediate, do_immediate_shift, do_S, do_aluhot,
@@ -83,6 +84,7 @@ module whole;
 		cpsr_mask,
 		address1,
 		address2,
+		address3,
 		regbank_active,
 		reg_w,
 		pc_w,
@@ -91,6 +93,7 @@ module whole;
 		t_clk2,
 		read1,
 		read2,
+		read3,
 		pc_read
 	);
 
@@ -182,6 +185,14 @@ module whole;
 		reg_w = 0;
 		regbank_active = 0;
 
+		address1 = 2;
+		reg_write = 3;
+		reg_w = 1;
+		t_clk2 = 1;
+		#10 t_clk2 = 0;
+		reg_w = 0;
+		regbank_active = 0;
+
 		// Data Processing operand2 addressing types
 		// immediate addressing
 		instructions[0][31:28] = 0; // condition
@@ -224,10 +235,10 @@ module whole;
 		// multiply test
 		instructions[3][31:28] = 0; // condition	
 		instructions[3][27:24] = 0; // indicator
-		instructions[3][23:21] = 3'b100; // mul (simple MUL)
+		instructions[3][23:21] = 3'b001; // mul (simple MUL)
 		instructions[3][20] = 0; // S
-		instructions[3][19:16] = 2; // Rd
-		instructions[3][15:12] = 0; // Rn
+		instructions[3][19:16] = 0; // Rd
+		instructions[3][15:12] = 2; // Rn
 		instructions[3][11:8] = 0; // Rs
 		instructions[3][7:4] = 4'b1001; // mul signature
 		instructions[3][3:0] = 1; // Rm
@@ -310,6 +321,10 @@ module whole;
 			address2 = instruction[11:8];
 			reg_w = 0;
 			$display("reading from regs %h & %h", address1, address2);
+			
+			if(do_mode == `mode_mult_mla) begin
+				address3 = instruction[15:12];
+			end
 
 			#5 busA = read1;
 			busB = read2;
@@ -358,7 +373,19 @@ module whole;
 					mult_input_1 = busA;
 					mult_input_2 = busB;
 					#5 $display("mult output:%d x %d = %d", mult_input_1, mult_input_2, mult_output);
-					reg_write = mult_output;
+					busA = mult_output;
+					busB = 0;
+				end
+
+				`mode_mult_mla: begin
+					mult_input_1 = busA;
+					mult_input_2 = busB;
+					#5 $display("mult output:%d x %d = %d", mult_input_1, mult_input_2, mult_output);
+					busA = read3;
+					busB = mult_output;
+					shifter_count = 0;
+					shifter_mode = 0;
+					#5 $display("shifter output %h", shifter_output);
 				end
 				
 				`mode_mult_umull, `mode_mult_smull: begin

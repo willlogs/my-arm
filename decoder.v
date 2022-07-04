@@ -38,8 +38,14 @@ module decoder(
 				// multiplication
 				mul = instruction[23:21];	
 				mult_hot = 1;
-				alu_hot = 0;
+				alu_hot = 1;
 				reg_w = 1;
+				invert_a = 0;
+				invert_b = 0;
+				islogic = 0;
+				logicidx = 0;
+				alu_cin = 0;
+				reg_w = 1;	
 
 				case(mul)
 					3'b000: begin
@@ -51,6 +57,7 @@ module decoder(
 					end
 					3'b001: begin
 						$display("MLA");
+						mode = `mode_mult_mla;
 					end
 					3'b100: begin
 						$display("UMULL");

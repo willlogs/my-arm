@@ -4,6 +4,7 @@ module registerbank(
 	input [31:0] cpsr_write, cpsr_mask,
   input [4:0] address1,
   input [4:0] address2,
+  input [4:0] address3,
 	input is_active,
   input w,
   input pc_w,
@@ -11,6 +12,7 @@ module registerbank(
   input clk1, clk2,
   output reg[31:0] read1,
   output reg[31:0] read2,
+  output reg[31:0] read3,
   output reg[31:0] pc_read
 );
 	// 37 registers total. The mapping is like this:
@@ -36,22 +38,23 @@ module registerbank(
 					$display("reading %h from %h", read1, address1);
 					read2 = bank[address2];	
 					$display("reading %h from %h", read2, address2);
+					read3 = bank[address3];	
+					$display("reading %h from %h", read3, address3);
 				end
 
-				if(pc_w) begin
-					$display("writing %h to pc", pc_write);
-					bank[15] = pc_write;
-				end
-				else begin
-					pc_read = bank[15];
-					$display("reading %h from pc", pc_read);
-				end
+				pc_read = bank[15];
+				$display("reading %h from pc", pc_read);
 	  	end
 
 			if(clk2) begin
 				if(w) begin		
 					$display("writing %h to %h", write, address1);
 					bank[address1] = write;			
+				end
+
+				if(pc_w) begin
+					$display("writing %h to pc", pc_write);
+					bank[15] = pc_write;
 				end
 
 				if(cpsr_w) begin
