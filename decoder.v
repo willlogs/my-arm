@@ -231,7 +231,7 @@ module decoder(
 						special_input[1] = 1;
 					end
 				endcase
-				$display("deciding operand mode");
+
 				if(operandmode == 1) begin
 					shifter_mode = 3'b100; // left shift circular
 					shifter_count = operand2[11:8];

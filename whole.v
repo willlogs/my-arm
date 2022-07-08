@@ -41,7 +41,7 @@ module whole;
 		busB,
 		data_read,
 		data_write,
-		instruction,
+		instruction, instruction_dec, instruction_exec,
 		cpsr_write,
 		cpsr_mask,
 		mem_address,
@@ -118,6 +118,21 @@ module whole;
 	// barrelshifter
 	barrelshifter shiftermodule(busB, shifter_mode, shifter_count, shifter_output);
 
+	reg buff_reg_w,
+	buff_pc_w,
+	buff_ale,
+	buff_abe,
+	buff_is_immediate,
+	buff_S_on,
+	buff_alu_hot,
+	buff_mult_hot;
+	reg[3:0] buff_mode;
+	reg [1:0] buff_special_input; // 0 all zero, 1 all one, second bit is on/off
+	reg [2:0] buff_shifter_mode, buff_logicidx;
+	reg [4:0] buff_shifter_count;
+	reg [3:0] buff_Rn, buff_Rd, buff_Rm, buff_Rs;
+	reg buff_invert_a, buff_invert_b, buff_islogic, buff_alu_cin, buff_immediate_shift;
+
 	// decoder - do means decoder output
 	decoder decodermodule(
 		instruction,
@@ -174,6 +189,7 @@ module whole;
 	);
 
 	initial begin
+		clockgen_active = 0;
 		#1000 $display("setting up processor");
 		regbank_active = 0;
 		/*
@@ -285,6 +301,7 @@ module whole;
 
 		instruction = 0;
 		test_clkactive = 1;
+		clockgen_active = 1;
 		mem_w = 0;
 	end
 
@@ -308,23 +325,21 @@ module whole;
 		===========================
 		===========================
 		*/
-		// decoder output signal off
-		fetch_done = 0;
-		regbank_active = 1;
+		// if decoder is still processing things, hold on (shouldn't happen)
 		pc_increment = 1;
 
 		// fetch
 		#1 mem_address = pc_read;
-		#1 regbank_active = 0;
 
-		#5 $display("\n\n===> fetch %h -> %h", mem_address, mem_read);
+		#1 $display("\n\n===> fetch %h -> %h", mem_address, mem_read);
 		instruction = mem_read;
 		pc_increment = 0;
 		fetch_done = 1;
+		instruction_dec = instruction;
 	end
 
 	reg do_availabe = 0, decoder_active = 0;
-	always @(posedge fetch_done) begin
+	always @(posedge t_clk1) begin
 		/*
 		===========================
 		===========================
@@ -334,22 +349,24 @@ module whole;
 		===========================
 		===========================
 		*/
-		do_availabe = 0;
-		decoder_active = 1;
-		// decode
-		$display("\n\n===> decode");
-		if(instruction == 0) begin
-			$display("halt");
-			$finish(0);
-		end
+		if(fetch_done) begin
+			decoder_active = 1;
+			// decode
+			$display("\n\n===> decode");
+			if(instruction_dec == 0) begin
+				$display("halt");
+				$finish(0);
+			end
 
-		// #10 decoder output on end
-		#10 do_availabe = 1;
-		decoder_active = 0;
+			// #10 decoder output on end
+			#2 do_availabe = 1;
+			decoder_active = 0;
+			instruction_exec = instruction_dec;
+		end
 	end
 	
 	reg regbank_donereading = 0;
-	always @(posedge do_availabe) begin
+	always @(posedge t_clk1) begin
 		/*
 		===========================
 		===========================
@@ -361,61 +378,64 @@ module whole;
 		===========================
 		===========================
 		*/
-		regbank_donereading = 0;
+		if(do_availabe) begin
+			regbank_donereading = 0;
+			$display("\n\n===> REG");
 
-		regbank_active = 1;
-		if(is_immediate) begin
-			$display("\n\n===> immediate addressing");
-			address1 = do_Rn;
+			regbank_active = 1;
+			if(is_immediate) begin
+				$display("\n\n===> immediate addressing");
+				address1 = do_Rn;
 
-			#5 busA = read1;
+				#5 busA = read1;
 
-			// calculate operand 2
-			busB = instruction[7:0];
-			shifter_count = do_shifter_count;
-			shifter_mode = do_shifter_mode;
-			#5 $display("immedate addressing %h", shifter_output);
-		end
-		else begin
-			$display("\n\n===> non-immediate addressing");
-			if(do_mult_hot) begin
-				address1 = instruction[3:0];
-			end
-			else address1 = do_Rn;
-
-			address2 = instruction[11:8];
-			reg_w = 0;
-			$display("reading from regs %h & %h", address1, address2);
-			
-			if(do_mode == `mode_mult_mla) begin
-				address3 = instruction[15:12];
-			end
-
-			#5 busA = read1;
-			busB = read2;
-
-			if(!do_mult_hot) begin
-				// shift
-				if(do_immediate_shift) begin
-					shifter_count = do_shifter_count;
-				end
-				else begin
-					// bypass -- I don't want a double clock instruction
-					// TODO: solution: put Rs and Rm in shifter then read Rn while waiting for shifter and do the rest
-					shifter_count = 0;
-				end
+				// calculate operand 2
+				busB = instruction_exec[7:0];
+				shifter_count = do_shifter_count;
 				shifter_mode = do_shifter_mode;
-				#5 $display("shifter output %h", shifter_output);
+				#5 $display("immedate addressing %h", shifter_output);
 			end
-		end
+			else begin
+				$display("\n\n===> non-immediate addressing");
+				if(do_mult_hot) begin
+					address1 = instruction_exec[3:0];
+				end
+				else address1 = do_Rn;
 
-		// special input mode
-		if(do_special_input[1]) begin
-			if(do_special_input[0] == 0) busA = one;
-			else busA = zero;
+				address2 = instruction_exec[11:8];
+				reg_w = 0;
+				$display("reading from regs %h & %h", address1, address2);
+				
+				if(do_mode == `mode_mult_mla) begin
+					address3 = instruction_exec[15:12];
+				end
+
+				#5 busA = read1;
+				busB = read2;
+
+				if(!do_mult_hot) begin
+					// shift
+					if(do_immediate_shift) begin
+						shifter_count = do_shifter_count;
+					end
+					else begin
+						// bypass -- I don't want a double clock instruction
+						// TODO: solution: put Rs and Rm in shifter then read Rn while waiting for shifter and do the rest
+						shifter_count = 0;
+					end
+					shifter_mode = do_shifter_mode;
+					#5 $display("shifter output %h", shifter_output);
+				end
+			end
+
+			// special input mode
+			if(do_special_input[1]) begin
+				if(do_special_input[0] == 0) busA = one;
+				else busA = zero;
+			end
+			regbank_active = 0;
+			#5 regbank_donereading = 1;
 		end
-		regbank_active = 0;
-		#5 regbank_donereading = 1;
 	end
 
 	reg alu_done = 0;
@@ -429,8 +449,6 @@ module whole;
 		===========================
 		===========================
 		*/
-		alu_done = 0;
-
 		if(do_mult_hot) begin
 			$display("\n\n===> multiplication");
 			case(do_mode)
@@ -477,6 +495,7 @@ module whole;
 		end
 
 		#5 alu_done = 1;
+		$display("rw: %h", reg_write);
 	end
 
 	reg mem_done = 0; 
@@ -497,7 +516,7 @@ module whole;
 	end
 
 	reg doubleregsave = 0;
-	always @(posedge mem_done) begin
+	always @(posedge t_clk2) begin
 		/*
 		===========================
 		===========================
@@ -507,35 +526,38 @@ module whole;
 		===========================
 		===========================
 		*/
-		if(do_reg_w) begin
-			$display("\n\n===> write back to register");
-			case(do_mode)
-				0: address1 = instruction[15:12]; 
-				`mode_mult_mul: address1 = instruction[19:16];
-				`mode_mult_smull, `mode_mult_umull: begin
-					doubleregsave = 1;
-					address1 = instruction[19:16];
-				end
-			endcase
+		if(alu_done) begin
+			if(do_reg_w) begin
+				$display("\n\n===> write back to register");
+				case(do_mode)
+					0: address1 = instruction_exec[15:12]; 
+					`mode_mult_mul: address1 = instruction_exec[19:16];
+					`mode_mult_smull, `mode_mult_umull: begin
+						doubleregsave = 1;
+						address1 = instruction_exec[19:16];
+					end
+				endcase
 
-			reg_w = 1;
-			$display("writing %d to %h", reg_write, address1);
-			#5 if(doubleregsave) begin
-				reg_w = 0;
-				address1 = instruction[15:12];
-				reg_write = mult_output[31:0];
 				reg_w = 1;
+				$display("writing %d to %h", reg_write, address1);
+				#5 if(doubleregsave) begin
+					reg_w = 0;
+					address1 = instruction_exec[15:12];
+					reg_write = mult_output[31:0];
+					reg_w = 1;
+				end
+
+				#5 reg_w = 0;
 			end
 
-			#5 reg_w = 0;
+			// Set conditions
+			if(do_S) begin
+				cpsr_write =  {alu_N, alu_Z, alu_C, alu_V, zero[27:0]};
+				cpsr_mask = one;
+				cpsr_w = 1;
+			end
 		end
 
-		// Set conditions
-		if(do_S) begin
-			cpsr_write =  {alu_N, alu_Z, alu_C, alu_V, zero[27:0]};
-			cpsr_mask = one;
-			cpsr_w = 1;
-		end
 	end
 endmodule
 `endif
