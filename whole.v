@@ -49,7 +49,7 @@ module whole;
 		mem_mask;
 	reg [31:0] one = 32'hffffffff;
 	reg [31:0] zero = 0; 
-	reg[4:0] address1, address2, address3;
+	reg[4:0] address1, address2, address3, fw_Rd;
 	reg reg_w, pc_w, ale, abe, w, cpsr_w, regbank_active;
 	reg t_clk1, t_clk2;
 	reg[31:0] mult_input_1, mult_input_2;
@@ -326,19 +326,23 @@ module whole;
 		===========================
 		*/
 		// if decoder is still processing things, hold on (shouldn't happen)
-		pc_increment = 1;
+		#10 if(!halted && !decoder_full) begin
+			pc_increment = 1;
 
-		// fetch
-		#1 mem_address = pc_read;
+			// fetch
+			#5 mem_address = pc_read;
 
-		#1 $display("\n\n===> fetch %h -> %h", mem_address, mem_read);
-		instruction = mem_read;
-		pc_increment = 0;
-		fetch_done = 1;
-		instruction_dec = instruction;
+			#1 $display("\n\n===> fetch %h -> %h", mem_address, mem_read);
+			instruction = mem_read;
+			pc_increment = 0;
+			fetch_done = 1;
+		end
+		else begin
+			$display("\n\n===> fetch HALT");
+		end
 	end
 
-	reg do_availabe = 0, decoder_active = 0;
+	reg do_availabe = 0, decoder_active = 0, valid_fw = 0, halted = 0, decoder_full = 0;
 	always @(posedge t_clk1) begin
 		/*
 		===========================
@@ -349,7 +353,8 @@ module whole;
 		===========================
 		===========================
 		*/
-		if(fetch_done) begin
+		if(fetch_done && !halted) begin
+			instruction_dec = instruction;
 			decoder_active = 1;
 			// decode
 			$display("\n\n===> decode");
@@ -358,11 +363,46 @@ module whole;
 				$finish(0);
 			end
 
-			// #10 decoder output on end
-			#2 do_availabe = 1;
-			decoder_active = 0;
-			instruction_exec = instruction_dec;
+			#2 decoder_active = 0;
+			decoder_full = 1;
+
+			case(do_mode)
+				0: begin
+					if(do_Rn == fw_Rd || do_Rs == fw_Rd || do_Rm == fw_Rd) begin
+						halted = 1;
+						$display("!!!!!!!!!!!!!!!!HALT!!!!!!!!!!!!!");
+					end
+					else begin
+						fw_Rd = do_Rd;
+					end
+				end
+
+				`mode_mult_mul: begin
+					if(instruction_dec[3:0] == fw_Rd || instruction_dec[11:8] == fw_Rd || instruction_dec[15:12] == fw_Rd)begin
+						halted = 1;
+						$display("!!!!!!!!!!!!!!!!HALT!!!!!!!!!!!!!");
+					end
+					else begin
+						fw_Rd = instruction_dec[19:16];
+					end
+				end
+			endcase	
+
+			if(!halted) begin
+				do_availabe = 1;
+				buff_Rd = do_Rd;
+				buff_Rm = do_Rm;
+				buff_Rn = do_Rn;
+				buff_Rs = do_Rs;
+				buff_mode = do_mode;
+				decoder_full = 0;
+				instruction_exec = instruction_dec;
+			end
+			else begin
+				do_availabe = 0;
+			end
 		end
+		else $display("\n\n===> decode HALT");
 	end
 	
 	reg regbank_donereading = 0;
@@ -378,14 +418,15 @@ module whole;
 		===========================
 		===========================
 		*/
+		regbank_donereading = 0;
+
 		if(do_availabe) begin
-			regbank_donereading = 0;
 			$display("\n\n===> REG");
 
 			regbank_active = 1;
 			if(is_immediate) begin
 				$display("\n\n===> immediate addressing");
-				address1 = do_Rn;
+				address1 = buff_Rn;
 
 				#5 busA = read1;
 
@@ -400,13 +441,13 @@ module whole;
 				if(do_mult_hot) begin
 					address1 = instruction_exec[3:0];
 				end
-				else address1 = do_Rn;
+				else address1 = buff_Rn;
 
 				address2 = instruction_exec[11:8];
 				reg_w = 0;
 				$display("reading from regs %h & %h", address1, address2);
 				
-				if(do_mode == `mode_mult_mla) begin
+				if(buff_mode == `mode_mult_mla) begin
 					address3 = instruction_exec[15:12];
 				end
 
@@ -436,6 +477,7 @@ module whole;
 			regbank_active = 0;
 			#5 regbank_donereading = 1;
 		end
+		else $display("DO NOT AVAILABLE");
 	end
 
 	reg alu_done = 0;
@@ -451,7 +493,7 @@ module whole;
 		*/
 		if(do_mult_hot) begin
 			$display("\n\n===> multiplication");
-			case(do_mode)
+			case(buff_mode)
 				`mode_mult_mul: begin
 					mult_input_1 = busA;
 					mult_input_2 = busB;
@@ -490,7 +532,7 @@ module whole;
 			reg_write = alu_result;
 		end
 		
-		if(do_mode == `mode_skip_alu) begin
+		if(buff_mode == `mode_skip_alu) begin
 			reg_write = shifter_output;
 		end
 
@@ -529,7 +571,7 @@ module whole;
 		if(alu_done) begin
 			if(do_reg_w) begin
 				$display("\n\n===> write back to register");
-				case(do_mode)
+				case(buff_mode)
 					0: address1 = instruction_exec[15:12]; 
 					`mode_mult_mul: address1 = instruction_exec[19:16];
 					`mode_mult_smull, `mode_mult_umull: begin
@@ -555,6 +597,12 @@ module whole;
 				cpsr_write =  {alu_N, alu_Z, alu_C, alu_V, zero[27:0]};
 				cpsr_mask = one;
 				cpsr_w = 1;
+			end
+
+			if(halted) begin
+				halted = 0;
+				fw_Rd = 5'bxxxxx;
+				$display("stopping halt");
 			end
 		end
 
