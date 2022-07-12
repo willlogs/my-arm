@@ -406,7 +406,7 @@ module whole;
 	end
 	
 	reg regbank_donereading = 0;
-	always @(posedge t_clk1) begin
+	always @(posedge do_availabe) begin
 		/*
 		===========================
 		===========================
