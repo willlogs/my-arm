@@ -3,7 +3,7 @@
 module clock(input active, output reg c1, output reg c2);
 	integer phase = 0;
 
-	always #30 begin
+	always #40 begin
 		if(active)begin
 			if(phase == 0)begin
 				c1 = 1;

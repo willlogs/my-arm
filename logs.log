@@ -17,15 +17,14 @@ CLK
 
 
 ===> decode HALT
-reading 00000000 from pc
 mem-reading 00202091 from 0000000c
 DO NOT AVAILABLE
+pc increment to 00000004
 reading 00000000 from pc
 mem-reading 0290000f from 00000000
 
 
 ===> fetch 00000000 -> 0290000f
-reading 00000000 from pc
 
 =============
 =============
@@ -36,7 +35,6 @@ CLK
 
 
 ===> decode
-reading 00000000 from pc
 mem-reading 0290000f from 00000000
 decoding instruction 0290000f
 ADD
@@ -50,27 +48,23 @@ accessing regbank w: 0
 reading 00000005 from 00
 reading xxxxxxxx from xx
 reading xxxxxxxx from xx
-reading 00000000 from pc
+pc increment to 00000008
+reading 00000004 from pc
+Shift count:  0
+lsc
 accessing regbank w: 0
 reading 00000005 from 00
 reading xxxxxxxx from xx
 reading xxxxxxxx from xx
-pc increment to 00000004
-reading 00000004 from pc
-Shift count:  0
-lsc
 immedate addressing 0000000f
 mem-reading 00900111 from 00000004
-reading 00000004 from pc
 
 
 ===> fetch 00000004 -> 00900111
-reading 00000004 from pc
 
 
 ===> ALU opertation
 alu inputs busA : 00000005 busB: 0000000f, output: 00000014
-reading 00000004 from pc
 rw: 00000014
 
 
@@ -88,7 +82,6 @@ CLK
 
 
 ===> decode
-reading 00000004 from pc
 mem-reading 00900111 from 00000004
 decoding instruction 00900111
 ADD
@@ -116,7 +109,6 @@ CLK
 
 
 ===> decode
-reading 00000004 from pc
 mem-reading 00900111 from 00000004
 decoding instruction 00900111
 ADD
@@ -131,27 +123,23 @@ accessing regbank w: 0
 reading 00000014 from 00
 reading 00000003 from 01
 reading xxxxxxxx from xx
-reading 00000004 from pc
+pc increment to 0000000c
+reading 00000008 from pc
+Shift count:  0
+lsl
 accessing regbank w: 0
 reading 00000014 from 00
 reading 00000003 from 01
 reading xxxxxxxx from xx
-pc increment to 00000008
-reading 00000008 from pc
-Shift count:  0
-lsl
 shifter output 00000003
 mem-reading 00100131 from 00000008
-reading 00000008 from pc
 
 
 ===> fetch 00000008 -> 00100131
-reading 00000008 from pc
 
 
 ===> ALU opertation
 alu inputs busA : 00000014 busB: 00000003, output: 00000017
-reading 00000008 from pc
 rw: 00000017
 writing CPSR 00010000000000000000000000000000
 
@@ -171,7 +159,6 @@ CLK
 
 
 ===> decode
-reading 00000008 from pc
 mem-reading 00100131 from 00000008
 decoding instruction 00100131
 AND
@@ -200,7 +187,6 @@ CLK
 
 
 ===> decode
-reading 00000008 from pc
 mem-reading 00100131 from 00000008
 decoding instruction 00100131
 AND
@@ -215,28 +201,24 @@ accessing regbank w: 0
 reading 00000017 from 00
 reading 00000003 from 01
 reading xxxxxxxx from xx
-reading 00000008 from pc
+pc increment to 00000010
+reading 0000000c from pc
+Shift count:  0
+rsl
 accessing regbank w: 0
 reading 00000017 from 00
 reading 00000003 from 01
 reading xxxxxxxx from xx
-pc increment to 0000000c
-reading 0000000c from pc
-Shift count:  0
-rsl
 shifter output 00000003
 mem-reading 00202091 from 0000000c
-reading 0000000c from pc
 
 
 ===> fetch 0000000c -> 00202091
-reading 0000000c from pc
 
 
 ===> ALU opertation
 and logic
 alu inputs busA : 00000017 busB: 00000003, output: 00000003
-reading 0000000c from pc
 rw: 00000003
 writing CPSR 00010000000000000000000000000000
 
@@ -256,7 +238,6 @@ CLK
 
 
 ===> decode
-reading 0000000c from pc
 mem-reading 00202091 from 0000000c
 decoding instruction 00202091
 MLA
@@ -271,15 +252,15 @@ accessing regbank w: 0
 reading 00000003 from 01
 reading 00000003 from 00
 reading 0000000f from 02
-reading 0000000c from pc
-reading 0000000c from pc
+pc increment to 00000014
+reading 00000010 from pc
+mem-reading 00000000 from 00000010
 
 
 ===> multiplication
 
 
-===> fetch 0000000c -> 00202091
-reading 0000000c from pc
+===> fetch 00000010 -> 00000000
 mult output:         3 x          3 =                    9
 Shift count:  0
 lsl
@@ -288,7 +269,6 @@ shifter output 00000009
 
 ===> ALU opertation
 alu inputs busA : 0000000f busB: 00000009, output: 00000018
-reading 0000000c from pc
 rw: 00000018
 writing CPSR 00000000000000000000000000000000
 
@@ -308,192 +288,18 @@ CLK
 
 
 ===> decode
-reading 0000000c from pc
-mem-reading 00202091 from 0000000c
-decoding instruction 00202091
-MLA
+halt
+mem-reading 00000000 from 00000010
+DO NOT AVAILABLE
 
 
-===> REG
-
-
-===> non-immediate addressing
-reading from regs 01 & 00
-accessing regbank w: 0
-reading 00000018 from 01
-reading 00000003 from 00
-reading 0000000f from 02
-reading 0000000c from pc
-reading 0000000c from pc
-Shift count:  0
-lsl
-
-
-===> multiplication
-
-
-===> fetch 0000000c -> 00202091
-reading 0000000c from pc
-mult output:        24 x          3 =                   72
-Shift count:  0
-lsl
-shifter output 00000048
-
-
-===> ALU opertation
-alu inputs busA : 0000000f busB: 00000048, output: 00000057
-reading 0000000c from pc
-rw: 00000057
+===> fetch HALT
 writing CPSR 00010000000000000000000000000000
 
 
 ===> write back to register
-writing         87 to 01
-writing 00000057 to 01
+writing         24 to 01
+writing 00000018 to 01
 writing CPSR 00010000000000000000000000000000
+whole.v:618: $finish called at 7370 (1s)
 writing CPSR 00010000000000000000000000000000
-
-=============
-=============
-CLK
-=============
-=============
-
-
-
-===> decode
-reading 0000000c from pc
-mem-reading 00202091 from 0000000c
-decoding instruction 00202091
-MLA
-
-
-===> REG
-
-
-===> non-immediate addressing
-reading from regs 01 & 00
-accessing regbank w: 0
-reading 00000057 from 01
-reading 00000003 from 00
-reading 0000000f from 02
-reading 0000000c from pc
-reading 0000000c from pc
-Shift count:  0
-lsl
-
-
-===> multiplication
-
-
-===> fetch 0000000c -> 00202091
-reading 0000000c from pc
-mult output:        87 x          3 =                  261
-Shift count:  0
-lsl
-shifter output 00000105
-
-
-===> ALU opertation
-alu inputs busA : 0000000f busB: 00000105, output: 00000114
-reading 0000000c from pc
-rw: 00000114
-writing CPSR 00010000000000000000000000000000
-
-
-===> write back to register
-writing        276 to 01
-writing 00000114 to 01
-writing CPSR 00010000000000000000000000000000
-writing CPSR 00010000000000000000000000000000
-
-=============
-=============
-CLK
-=============
-=============
-
-
-
-===> decode
-reading 0000000c from pc
-mem-reading 00202091 from 0000000c
-decoding instruction 00202091
-MLA
-
-
-===> REG
-
-
-===> non-immediate addressing
-reading from regs 01 & 00
-accessing regbank w: 0
-reading 00000114 from 01
-reading 00000003 from 00
-reading 0000000f from 02
-reading 0000000c from pc
-reading 0000000c from pc
-Shift count:  0
-lsl
-
-
-===> multiplication
-
-
-===> fetch 0000000c -> 00202091
-reading 0000000c from pc
-mult output:       276 x          3 =                  828
-Shift count:  0
-lsl
-shifter output 0000033c
-
-
-===> ALU opertation
-alu inputs busA : 0000000f busB: 0000033c, output: 0000034b
-reading 0000000c from pc
-rw: 0000034b
-writing CPSR 00010000000000000000000000000000
-
-
-===> write back to register
-writing        843 to 01
-writing 0000034b to 01
-writing CPSR 00010000000000000000000000000000
-writing CPSR 00010000000000000000000000000000
-
-=============
-=============
-CLK
-=============
-=============
-
-
-
-===> decode
-reading 0000000c from pc
-mem-reading 00202091 from 0000000c
-decoding instruction 00202091
-MLA
-
-
-===> REG
-
-
-===> non-immediate addressing
-reading from regs 01 & 00
-accessing regbank w: 0
-reading 0000034b from 01
-reading 00000003 from 00
-reading 0000000f from 02
-reading 0000000c from pc
-reading 0000000c from pc
-Shift count:  0
-lsl
-
-
-===> multiplication
-
-
-===> fetch 0000000c -> 00202091
-whole.v:350: $finish called at 7396 (1s)
-reading 0000000c from pc

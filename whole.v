@@ -257,7 +257,7 @@ module whole;
 		instruction[11:8] = 1; // Rn
 		instruction[7] = 0; // 0
 		instruction[6:5] = 0; // shift type
-		instruction[4] = 1; // immediate shift
+		instruction[4] =1; // immediate shift
 		instruction[3:0] = 1; // Rm
 
 		mem_address = 4;
@@ -345,9 +345,6 @@ module whole;
 		else begin
 			$display("\n\n===> fetch HALT");
 		end
-
-		runs += 1;
-		if(runs > 10) $finish();
 	end
 
 	reg do_availabe = 0, decoder_active = 0, valid_fw = 0, halted = 0, decoder_full = 0, done = 0;
@@ -368,6 +365,7 @@ module whole;
 			if(instruction_dec == 0) begin
 				$display("halt");
 				done = 1;
+				decoder_full = 1;
 			end
 
 			if(!done) begin
