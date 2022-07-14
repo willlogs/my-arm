@@ -189,6 +189,9 @@ module whole;
 	);
 
 	initial begin
+		$dumpfile("test.vcd");
+		$dumpvars(0,whole);
+
 		clockgen_active = 0;
 		#1000 $display("setting up processor");
 		regbank_active = 0;
@@ -251,9 +254,10 @@ module whole;
 		instruction[20] = 1; // S
 		instruction[19:16] = 0; // first operand reg
 		instruction[15:12] = 0; // destination reg
-		instruction[11:7] = 0; // immediate shift length
+		instruction[11:8] = 1; // Rn
+		instruction[7] = 0; // 0
 		instruction[6:5] = 0; // shift type
-		instruction[4] = 0; // immediate shift
+		instruction[4] = 1; // immediate shift
 		instruction[3:0] = 1; // Rm
 
 		mem_address = 4;
@@ -270,9 +274,9 @@ module whole;
 		instruction[20] = 1; // S
 		instruction[19:16] = 0; // first operand reg
 		instruction[15:12] = 0; // destination reg
-		instruction[11:8] = 2; // Rs
+		instruction[11:8] = 1; // Rs
 		instruction[7] = 0; // just for alignment
-		instruction[6:5] = 0; // shift type
+		instruction[6:5] = 1; // shift type
 		instruction[4] = 1; // immediate shift
 		instruction[3:0] = 1; // Rm
 
@@ -315,6 +319,7 @@ module whole;
 	end
 
 	reg fetch_done = 0;
+	integer runs = 0;
 	always @(posedge t_clk1) begin
 		/*
 		===========================
@@ -340,9 +345,12 @@ module whole;
 		else begin
 			$display("\n\n===> fetch HALT");
 		end
+
+		runs += 1;
+		if(runs > 10) $finish();
 	end
 
-	reg do_availabe = 0, decoder_active = 0, valid_fw = 0, halted = 0, decoder_full = 0;
+	reg do_availabe = 0, decoder_active = 0, valid_fw = 0, halted = 0, decoder_full = 0, done = 0;
 	always @(posedge t_clk1) begin
 		/*
 		===========================
@@ -355,58 +363,60 @@ module whole;
 		*/
 		if(fetch_done && !halted) begin
 			instruction_dec = instruction;
-			decoder_active = 1;
 			// decode
 			$display("\n\n===> decode");
 			if(instruction_dec == 0) begin
 				$display("halt");
-				$finish(0);
+				done = 1;
 			end
 
-			#2 decoder_active = 0;
-			decoder_full = 1;
+			if(!done) begin
+				decoder_active = 1;
+				#2 decoder_active = 0;
+				decoder_full = 1;
 
-			case(do_mode)
-				0: begin
-					if(do_Rn == fw_Rd || do_Rs == fw_Rd || do_Rm == fw_Rd) begin
-						halted = 1;
-						$display("!!!!!!!!!!!!!!!!HALT!!!!!!!!!!!!!");
+				case(do_mode)
+					0: begin
+						if(do_Rn == fw_Rd || do_Rs == fw_Rd || do_Rm == fw_Rd) begin
+							halted = 1;
+							$display("!!!!!!!!!!!!!!!!HALT!!!!!!!!!!!!!");
+						end
+						else begin
+							fw_Rd = do_Rd;
+						end
 					end
-					else begin
-						fw_Rd = do_Rd;
+
+					`mode_mult_mul: begin
+						if(instruction_dec[3:0] == fw_Rd || instruction_dec[11:8] == fw_Rd || instruction_dec[15:12] == fw_Rd)begin
+							halted = 1;
+							$display("!!!!!!!!!!!!!!!!HALT!!!!!!!!!!!!!");
+						end
+						else begin
+							fw_Rd = instruction_dec[19:16];
+						end
 					end
+				endcase	
+
+				if(!halted && !do_availabe) begin
+					do_availabe = 1;
+					buff_Rd = do_Rd;
+					buff_Rm = do_Rm;
+					buff_Rn = do_Rn;
+					buff_Rs = do_Rs;
+					buff_mode = do_mode;
+					decoder_full = 0;
+					instruction_exec = instruction_dec;
 				end
-
-				`mode_mult_mul: begin
-					if(instruction_dec[3:0] == fw_Rd || instruction_dec[11:8] == fw_Rd || instruction_dec[15:12] == fw_Rd)begin
-						halted = 1;
-						$display("!!!!!!!!!!!!!!!!HALT!!!!!!!!!!!!!");
-					end
-					else begin
-						fw_Rd = instruction_dec[19:16];
-					end
+				else begin
+				
 				end
-			endcase	
-
-			if(!halted) begin
-				do_availabe = 1;
-				buff_Rd = do_Rd;
-				buff_Rm = do_Rm;
-				buff_Rn = do_Rn;
-				buff_Rs = do_Rs;
-				buff_mode = do_mode;
-				decoder_full = 0;
-				instruction_exec = instruction_dec;
-			end
-			else begin
-				do_availabe = 0;
 			end
 		end
 		else $display("\n\n===> decode HALT");
 	end
 	
 	reg regbank_donereading = 0;
-	always @(posedge do_availabe) begin
+	always @(posedge t_clk1) begin
 		/*
 		===========================
 		===========================
@@ -420,7 +430,7 @@ module whole;
 		*/
 		regbank_donereading = 0;
 
-		if(do_availabe) begin
+		#5 if(do_availabe && !halted) begin
 			$display("\n\n===> REG");
 
 			regbank_active = 1;
@@ -476,6 +486,7 @@ module whole;
 			end
 			regbank_active = 0;
 			#5 regbank_donereading = 1;
+			do_availabe = 0;
 		end
 		else $display("DO NOT AVAILABLE");
 	end
@@ -603,6 +614,10 @@ module whole;
 				halted = 0;
 				fw_Rd = 5'bxxxxx;
 				$display("stopping halt");
+			end
+
+			if(done) begin
+				$finish();
 			end
 		end
 

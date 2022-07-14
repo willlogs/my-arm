@@ -29,7 +29,7 @@ module decoder(
 	
 	always @(*) begin
 		if(clk && isactive) begin
-			$display("decoding instruction %b", instruction);
+			$display("decoding instruction %h", instruction);
 
 			alu_hot = 1;
 			special_input = 0;

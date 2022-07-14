@@ -50,11 +50,15 @@ module registerbank(
 					read3 = bank[address3];	
 					$display("reading %h from %h", read3, address3);
 				end
+
+				if(pc_increment) begin
+					bank[15] = bank[15] + 4;
+					$display("pc increment to %h", bank[15]);
+				end
 	  	end
 
 			if(clk1) begin
 				pc_read = bank[15];
-				if(pc_increment) bank[15] = bank[15] + 4;
 				$display("reading %h from pc", pc_read);
 			end
 

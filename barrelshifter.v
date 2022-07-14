@@ -4,6 +4,7 @@ module barrelshifter(input [31:0] i, input[2:0] mode, input[4:0] count, output r
 	integer counter;
 	reg[31:0] tmp;
 	always @(*) begin
+		$display("Shift count: %d", count);
 		case(mode)
 		  	// left shift logical
 			3'b000: begin
